@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<title>Органайзер</title>
+<style>
+/*! tailwindcss v3.x | MIT License | https://tailwindcss.com */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+</style>
+</head>
+<body class="bg-[#f9f9f9] text-gray-900 font-sans overflow-x-hidden">
+<div class="min-h-screen flex flex-col px-4">
+<header class="text-xl font-bold py-4 text-center">Telegram WebApp</header>
+<nav class="flex justify-around border-t border-b text-sm text-gray-700 bg-white sticky top-0 z-10">
+<button class="tab-btn flex-1 py-3" onclick="switchTab('today')">Сегодня</button>
+<button class="tab-btn flex-1 py-3" onclick="switchTab('tasks')">Заметки</button>
+<button class="tab-btn flex-1 py-3" onclick="switchTab('schedule')">Расписание</button>
+</nav>
+<main class="flex-1 overflow-y-auto p-4">
+<section class="tab hidden" id="today">
+<h2 class="text-lg font-semibold mb-2">Сегодня</h2>
+<div class="mb-4">
+<h3 class="font-medium mb-1 flex items-center gap-2">
+<img class="w-5 h-5" src="https://cdn-icons-png.flaticon.com/128/1828/1828925.png"/> Расписание
+        </h3>
+<div class="space-y-2 border-b pb-2" id="todayRepeats"></div>
+</div>
+<div>
+<h3 class="font-medium mb-1 flex items-center gap-2">
+<img class="w-5 h-5" src="https://cdn-icons-png.flaticon.com/128/1828/1828919.png"/> Одноразовые
+        </h3>
+<div class="space-y-2" id="todaySingles"></div>
+</div>
+</section>
+<section class="tab hidden" id="tasks">
+<div class="flex justify-between items-center mb-2">
+<h2 class="text-lg font-semibold">Заметки</h2>
+<button class="text-sm text-blue-600" onclick="openForm('single')">+ Добавить</button>
+</div>
+<div class="space-y-2" id="taskList"></div>
+</section>
+<section class="tab hidden" id="schedule">
+<div class="flex justify-between items-center mb-2">
+<h2 class="text-lg font-semibold">Расписание</h2>
+<button class="text-sm text-blue-600" onclick="openForm('repeat')">+ Добавить</button>
+</div>
+<div class="space-y-2" id="scheduleList"></div>
+</section>
+</main>
+<div class="hidden fixed inset-0 bg-black/40 flex items-end z-20" id="formModal">
+<div class="bg-white w-full max-w-sm mx-auto rounded-lg p-4 space-y-4">
+<input id="formIndex" type="hidden"/>
+<input class="w-full border p-2 rounded" id="formName" placeholder="Название задачи" type="text"/>
+<label class="text-sm">Время выполнения</label>
+<input class="w-full border p-2 rounded" id="formTime" type="time"/>
+<label class="text-sm">Время напоминания</label>
+<input class="w-full border p-2 rounded" id="formNotify" type="time"/>
+<div class="hidden" id="daySelector">
+<p class="font-medium">Повторяется в:</p>
+<div class="flex flex-wrap gap-2 mt-2">
+<button class="day-btn border px-3 py-1 rounded" data-day="Пн">Пн</button>
+<button class="day-btn border px-3 py-1 rounded" data-day="Вт">Вт</button>
+<button class="day-btn border px-3 py-1 rounded" data-day="Ср">Ср</button>
+<button class="day-btn border px-3 py-1 rounded" data-day="Чт">Чт</button>
+<button class="day-btn border px-3 py-1 rounded" data-day="Пт">Пт</button>
+<button class="day-btn border px-3 py-1 rounded" data-day="Сб">Сб</button>
+<button class="day-btn border px-3 py-1 rounded" data-day="Вс">Вс</button>
+</div>
+</div>
+<div class="flex justify-end gap-2">
+<button class="text-gray-500" onclick="closeForm()">Отмена</button>
+<button class="bg-black text-white px-4 py-2 rounded" onclick="saveTask()">Сохранить</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  let mode = 'repeat';
+  let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.add('hidden'));
+    document.getElementById(tab).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('border-b-2', 'border-black'));
+    event.target.classList.add('border-b-2', 'border-black');
+    if (tab === 'today') renderToday();
+  }
+
+  function openForm(selectedMode, index = null) {
+    mode = selectedMode;
+    document.getElementById('formModal').classList.remove('hidden');
+    document.getElementById('daySelector').classList.toggle('hidden', mode !== 'repeat');
+    if (index !== null) {
+      const task = tasks[index];
+      document.getElementById('formIndex').value = index;
+      document.getElementById('formName').value = task.name;
+      document.getElementById('formTime').value = task.time;
+      document.getElementById('formNotify').value = task.notify;
+      document.querySelectorAll('.day-btn').forEach(b => {
+        b.classList.toggle('bg-black', task.days.includes(b.dataset.day));
+        b.classList.toggle('text-white', task.days.includes(b.dataset.day));
+      });
+    } else {
+      document.getElementById('formIndex').value = '';
+    }
+  }
+
+  function closeForm() {
+    document.getElementById('formModal').classList.add('hidden');
+    document.getElementById('formIndex').value = '';
+    document.getElementById('formName').value = '';
+    document.getElementById('formTime').value = '';
+    document.getElementById('formNotify').value = '';
+    document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('bg-black', 'text-white'));
+  }
+
+  document.querySelectorAll('.day-btn').forEach(btn => btn.addEventListener('click', () => {
+    btn.classList.toggle('bg-black');
+    btn.classList.toggle('text-white');
+  }));
+
+  function saveTask() {
+    const index = document.getElementById('formIndex').value;
+    const name = document.getElementById('formName').value;
+    const time = document.getElementById('formTime').value;
+    const notify = document.getElementById('formNotify').value;
+    const days = Array.from(document.querySelectorAll('.day-btn.bg-black')).map(b => b.dataset.day);
+
+    const task = { name, time, notify, days, type: mode };
+    if (index) tasks[+index] = task;
+    else tasks.push(task);
+
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    closeForm();
+    renderTasks();
+    renderToday();
+  }
+
+  function renderToday() {
+    const today = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][new Date().getDay()];
+    const repeat = tasks.filter(t => t.type === 'repeat' && t.days.includes(today));
+    const single = tasks.filter(t => t.type === 'single');
+
+    document.getElementById('todayRepeats').innerHTML = repeat.map((t, i) => `
+      <div class="border p-3 rounded flex justify-between items-center">
+        <div>
+          <div class="font-medium">${t.name}</div>
+          <div class="text-sm text-gray-500"><img src='https://cdn-icons-png.flaticon.com/128/1828/1828913.png' class='inline w-4 h-4 mr-1'> ${t.days.join(', ')} — ${t.time}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" class="w-5 h-5">
+          <div class="relative">
+            <button onclick="toggleMenu(event, ${i}, 'repeat')" class="text-xl font-bold text-gray-700 absolute top-2 right-2 rotate-90">⋮</button>
+            <div id="menu-repeat-${i}" class="hidden absolute right-0 bg-white border rounded shadow p-1 space-y-1 text-sm">
+              <button onclick="openForm('repeat', ${i})" class="w-full text-left px-2 py-1 hover:bg-gray-100">Редактировать</button>
+              <button onclick="deleteTask('${t.name}', 'repeat')" class="w-full text-left px-2 py-1 hover:bg-gray-100">Удалить</button>
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('todaySingles').innerHTML = single.map((t, i) => `
+      <div class="border p-3 rounded flex justify-between items-center">
+        <div>
+          <div class="font-medium">${t.name}</div>
+          <div class="text-sm text-gray-500"><img src='https://cdn-icons-png.flaticon.com/128/1828/1828911.png' class='inline w-4 h-4 mr-1'> ${t.time}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" class="w-5 h-5">
+          <div class="relative">
+            <button onclick="toggleMenu(event, ${i}, 'single')" class="text-xl font-bold text-gray-700 absolute top-2 right-2 rotate-90">⋮</button>
+            <div id="menu-single-${i}" class="hidden absolute right-0 bg-white border rounded shadow p-1 space-y-1 text-sm">
+              <button onclick="openForm('single', ${i})" class="w-full text-left px-2 py-1 hover:bg-gray-100">Редактировать</button>
+              <button onclick="deleteTask('${t.name}', 'single')" class="w-full text-left px-2 py-1 hover:bg-gray-100">Удалить</button>
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function toggleMenu(event, index, type) {
+    event.stopPropagation();
+    document.querySelectorAll('.relative > div').forEach(menu => menu.classList.add('hidden'));
+    document.getElementById(`menu-${type}-${index}`).classList.toggle('hidden');
+  }
+
+  document.body.addEventListener('click', () => {
+    document.querySelectorAll('.relative > div').forEach(menu => menu.classList.add('hidden'));
+  });
+
+  function renderTasks() {
+    const repeat = tasks.filter(t => t.type === 'repeat');
+    const single = tasks.filter(t => t.type === 'single');
+
+    document.getElementById('scheduleList').innerHTML = repeat.map((t, i) => `
+      <div class="border p-3 rounded flex justify-between items-start">
+        <div>
+          <div class="font-medium">${t.name}</div>
+          <div class="text-xs text-gray-500">${t.days.join(', ')} — ${t.time}</div>
+        </div>
+        <div class="relative">
+          <button onclick="toggleMenu(event, ${i}, 'repeat')" class="text-xs text-gray-500">⋮</button>
+          <div id="menu-repeat-${i}" class="hidden absolute right-0 bg-white border rounded shadow p-1 space-y-1 text-sm">
+            <button onclick="openForm('repeat', ${i})" class="w-full text-left px-2 py-1 hover:bg-gray-100">Редактировать</button>
+            <button onclick="deleteTask('${t.name}', 'repeat')" class="w-full text-left px-2 py-1 hover:bg-gray-100">Удалить</button>
+          </div>
+        </div>
+      </div>`).join('');
+
+    document.getElementById('taskList').innerHTML = single.map((t, i) => `
+      <div class="border p-3 rounded flex justify-between items-start">
+        <div class="font-medium">${t.name}</div>
+        <div class="relative">
+          <button onclick="toggleMenu(event, ${i}, 'single')" class="text-xs text-gray-500">⋮</button>
+          <div id="menu-single-${i}" class="hidden absolute right-0 bg-white border rounded shadow p-1 space-y-1 text-sm">
+            <button onclick="openForm('single', ${i})" class="w-full text-left px-2 py-1 hover:bg-gray-100">Редактировать</button>
+            <button onclick="deleteTask('${t.name}', 'single')" class="w-full text-left px-2 py-1 hover:bg-gray-100">Удалить</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function deleteTask(name, type) {
+    tasks = tasks.filter(t => !(t.name === name && t.type === type));
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+    renderTasks();
+    renderToday();
+  }
+
+  switchTab('today');
+  renderTasks();
+</script>
+</body>
+</html>
